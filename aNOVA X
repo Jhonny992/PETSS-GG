@@ -92,6 +92,23 @@ local args = {
 game:GetService("ReplicatedStorage").Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
 end })
 
+-- botões
+Tabs.Main:AddButton({ Title = "🐶PETS ENORMES🐶", Callback = function() 
+local args = {
+    [1] = {
+        ["ItemType"] = "Pet",
+        ["ItemData"] = {
+            ["Price"] = -1,
+            ["Id"] = 5001,
+            ["Name"] = "Moody",
+            ["PriceType"] = "SeasonPassPoint"
+        }
+    }
+}
+
+game:GetService("ReplicatedStorage").Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+end })
+
 
 local Tabs = {
     Main = Window:AddTab({ Title = "🧪POÇÃO 🧪" }),
