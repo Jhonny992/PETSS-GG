@@ -1,131 +1,254 @@
--- carregar
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+--// Serviços
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Window = Fluent:CreateWindow({
-    Title = "YT JUBILEU⏩🐧" .. Fluent.Version,
-    TabWidth = 200, Size = UDim2.fromOffset(500, 300), Theme = "Dark"
-})
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-local Tabs = {
-    Main = Window:AddTab({ Title = "⚡ENERGIA ⚡" }),
+--// Cores e Fontes padrão
+local COLORS = {
+    MAIN_BG = Color3.fromRGB(20, 20, 20),
+    BUTTON_BG = Color3.fromRGB(30, 30, 30),
+    CHECK_BG = Color3.fromRGB(15, 15, 15),
+    TEXT = Color3.fromRGB(255, 255, 255),
+    CHECK_TEXT = Color3.fromRGB(0, 255, 0)
 }
 
-
--- botões
-Tabs.Main:AddButton({ Title = "⚡ENERGIA REPETIR⚡⚡", Callback = function() 
-while true do 
-local args = {
-    [1] = {
-        ["ItemType"] = "Energy",
-        ["ItemData"] = {
-            ["Price"] = -1,
-            ["Product"] = 1362659018,
-            ["Name"] = "Energy3",
-            ["PriceType"] = "SeasonPassPoint"
-        }
-    }
+local FONTS = {
+    BOLD = Enum.Font.GothamBold,
+    SEMI = Enum.Font.GothamSemibold
 }
 
-game:GetService("ReplicatedStorage").Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+--// Criar ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CustomMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
 
-Wait()
+--// Funções auxiliares
+local function createLabel(parent, text, size, position, font, textSize, color, alignLeft)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = size
+    lbl.Position = position
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.Font = font
+    lbl.TextSize = textSize
+    lbl.TextColor3 = color
+    if alignLeft then
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+    end
+    lbl.Parent = parent
+    return lbl
 end
-end })
 
--- botões
-Tabs.Main:AddButton({ Title = "⚡ENERGIA⚡", Callback = function() 
-local args = {
-    [1] = {
-        ["ItemType"] = "Energy",
-        ["ItemData"] = {
-            ["Price"] = -1,
-            ["Product"] = 1362659018,
-            ["Name"] = "Energy3",
-            ["PriceType"] = "SeasonPassPoint"
-        }
-    }
-}
-
-game:GetService("ReplicatedStorage").Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
-end })
-
-
-
-local Tabs = {
-    Main = Window:AddTab({ Title = "🐶PETS 🐶" }),
-}
--- botões
-Tabs.Main:AddButton({ Title = "🐶PETS REPETI🐶", Callback = function() 
-while true do 
-local args = {
-    [1] = {
-        ["ItemType"] = "Pet",
-        ["ItemData"] = {
-            ["Price"] = -1,
-            ["Id"] = 2005,
-            ["Name"] = "Moody",
-            ["PriceType"] = "SeasonPassPoint"
-        }
-    }
-}
-
-game:GetService("ReplicatedStorage").Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
-
-Wait()
+local function createButton(parent, text, size, position, font, textSize, bgColor)
+    local btn = Instance.new("TextButton")
+    btn.Size = size
+    btn.Position = position
+    btn.BackgroundColor3 = bgColor
+    btn.Text = text
+    btn.TextColor3 = COLORS.TEXT
+    btn.Font = font
+    btn.TextSize = textSize
+    btn.BorderSizePixel = 0
+    btn.Parent = parent
+    return btn
 end
-end })
 
--- botões
-Tabs.Main:AddButton({ Title = "🐶PETS CLICK🐶", Callback = function() 
-local args = {
-    [1] = {
-        ["ItemType"] = "Pet",
-        ["ItemData"] = {
-            ["Price"] = -1,
-            ["Id"] = 2005,
-            ["Name"] = "Moody",
-            ["PriceType"] = "SeasonPassPoint"
+--// Frame principal
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 200, 0, 200)
+mainFrame.Position = UDim2.new(0, 20, 0, 100)
+mainFrame.BackgroundColor3 = COLORS.MAIN_BG
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 6)
+mainCorner.Parent = mainFrame
+
+--// Header
+local title = createLabel(mainFrame, "YEET A FRIEND!", UDim2.new(1, -25, 0, 30), UDim2.new(0, 0, 0, 0), FONTS.BOLD, 16, COLORS.TEXT, true)
+local arrowButton = createButton(mainFrame, "▼", UDim2.new(0, 25, 0, 25), UDim2.new(1, -25, 0, 3), FONTS.BOLD, 18, Color3.fromRGB(0,0,0))
+arrowButton.BackgroundTransparency = 1
+
+--// Container de opções
+local optionsFrame = Instance.new("Frame")
+optionsFrame.Size = UDim2.new(1, 0, 1, -55)
+optionsFrame.Position = UDim2.new(0, 0, 0, 30)
+optionsFrame.BackgroundTransparency = 1
+optionsFrame.Parent = mainFrame
+
+--// Criar opções com toggle
+local optionsState = {}
+local loops = {} -- para armazenar coroutines
+
+local function createOption(name, order, func)
+    local button = createButton(optionsFrame, name, UDim2.new(1, -10, 0, 25), UDim2.new(0, 5, 0, (order * 28)), FONTS.SEMI, 14, COLORS.BUTTON_BG)
+    
+    -- Label de check (marca ✔)
+    local check = createLabel(button, "", UDim2.new(0, 20, 0, 20), UDim2.new(1, -50, 0.5, -10), FONTS.SEMI, 14, COLORS.CHECK_TEXT)
+    local checkCorner = Instance.new("UICorner")
+    checkCorner.CornerRadius = UDim.new(0, 4)
+    checkCorner.Parent = check
+
+    -- Label de estado (ON/OFF) menor
+    local stateLabel = createLabel(button, "OFF", UDim2.new(0, 30, 0, 20), UDim2.new(1, -25, 0.5, -10), FONTS.SEMI, 10, Color3.fromRGB(255, 0, 0))
+    
+    optionsState[name] = false
+
+    button.MouseButton1Click:Connect(function()
+        optionsState[name] = not optionsState[name]
+        check.Text = optionsState[name] and "✔" or ""
+        stateLabel.Text = optionsState[name] and "ON" or "OFF"
+        stateLabel.TextColor3 = optionsState[name] and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+        TweenService:Create(check, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = optionsState[name] and COLORS.CHECK_TEXT or COLORS.CHECK_BG}):Play()
+
+        if optionsState[name] then
+            loops[name] = coroutine.create(func)
+            coroutine.resume(loops[name])
+        else
+            loops[name] = nil
+        end
+    end)
+end
+
+--// Funções para cada opção
+local function infoEnergia()
+    while optionsState["Info Energia⚡"] do
+        local args = {
+            [1] = {
+                ["ItemType"] = "Energy",
+                ["ItemData"] = {
+                    ["Price"] = -1,
+                    ["Product"] = 1362659018,
+                    ["Name"] = "Energy3",
+                    ["PriceType"] = "SeasonPassPoint"
+                }
+            }
         }
-    }
-}
+        ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+        task.wait()
+    end
+end
 
-game:GetService("ReplicatedStorage").Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
-end })
-
--- botões
-Tabs.Main:AddButton({ Title = "🐶PETS ENORMES🐶", Callback = function() 
-local args = {
-    [1] = {
-        ["ItemType"] = "Pet",
-        ["ItemData"] = {
-            ["Price"] = -1,
-            ["Id"] = 5001,
-            ["Name"] = "Moody",
-            ["PriceType"] = "SeasonPassPoint"
+local function petsSP()
+    while optionsState["Pets SP🐶"] do
+        local args = {
+            [1] = {
+                ["ItemType"] = "Pet",
+                ["ItemData"] = {
+                    ["Price"] = -1,
+                    ["Id"] = 2005,
+                    ["Name"] = "Moody",
+                    ["PriceType"] = "SeasonPassPoint"
+                }
+            }
         }
-    }
-}
+        ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+        task.wait()
+    end
+end
 
-game:GetService("ReplicatedStorage").Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
-end })
-
-
-local Tabs = {
-    Main = Window:AddTab({ Title = "🧪POÇÃO 🧪" }),
-}
--- botões
-Tabs.Main:AddButton({ Title = "🧪PowerPotion🧪", Callback = function() 
-local args = {
-    [1] = {
-        ["ItemType"] = "Potion",
-        ["ItemData"] = {
-            ["Price"] = -1,
-            ["BoostType"] = "Power",
-            ["Name"] = "PowerPotion",
-            ["PriceType"] = "SeasonPassPoint"
+local function petsEnorme()
+    while optionsState["Pets enorme🐶"] do
+        local args = {
+            [1] = {
+                ["ItemType"] = "Pet",
+                ["ItemData"] = {
+                    ["Price"] = -1,
+                    ["Id"] = 5001,
+                    ["Name"] = "Moody",
+                    ["PriceType"] = "SeasonPassPoint"
+                }
+            }
         }
-    }
-}
+        ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+        task.wait()
+    end
+end
 
-game:GetService("ReplicatedStorage").Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
-end })
+local function powerPocao()
+    while optionsState["PowerPoção🧪"] do
+        local args = {
+            [1] = {
+                ["ItemType"] = "Potion",
+                ["ItemData"] = {
+                    ["Price"] = -1,
+                    ["BoostType"] = "Power",
+                    ["Name"] = "PowerPotion",
+                    ["PriceType"] = "SeasonPassPoint"
+                }
+            }
+        }
+        ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+        task.wait()
+    end
+end
+
+--// Criar todas as opções
+createOption("Pets 10Sp🐶", 0, petsSP)
+createOption("Pets enorme🐶", 1, petsEnorme)
+createOption("Info Energia⚡", 2, infoEnergia)
+createOption("PowerPoção🧪", 3, powerPocao)
+
+--// Rodapé
+local footer = createLabel(optionsFrame, "YouTube: Jubileu 🐧", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 1, -25), FONTS.SEMI, 13, COLORS.TEXT)
+
+--// Abrir/fechar menu com animação suave
+local open = true
+arrowButton.MouseButton1Click:Connect(function()
+    open = not open
+    local targetSize = open and UDim2.new(0, 200, 0, 200) or UDim2.new(0, 200, 0, 30)
+    local tween = TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize})
+    tween:Play()
+
+    if open then
+        tween.Completed:Connect(function()
+            optionsFrame.Visible = true
+        end)
+    else
+        optionsFrame.Visible = false
+    end
+    arrowButton.Text = open and "▼" or "▲"
+end)
+
+--// Arrastar livremente sem restrição
+local dragging = false
+local dragInput, mousePos, framePos
+
+title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        mousePos = input.Position
+        framePos = mainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+title.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - mousePos
+        mainFrame.Position = UDim2.new(
+            framePos.X.Scale,
+            framePos.X.Offset + delta.X,
+            framePos.Y.Scale,
+            framePos.Y.Offset + delta.Y
+        )
+    end
+end)
