@@ -91,16 +91,25 @@ for i, name in ipairs(tabNames) do
     tabs[name] = tabButton
 end
 
---// Frames separados para cada aba
+--// Frames separados para cada aba (ScrollingFrame com Layout)
 local optionFrames = {}
 for _, tabName in ipairs(tabNames) do
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 1, -65)
-    frame.Position = UDim2.new(0,0,0,60)
-    frame.BackgroundTransparency = 1
-    frame.Visible = (tabName == activeTab)
-    frame.Parent = mainFrame
-    optionFrames[tabName] = frame
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, 0, 1, -65)
+    scroll.Position = UDim2.new(0,0,0,60)
+    scroll.BackgroundTransparency = 1
+    scroll.Visible = (tabName == activeTab)
+    scroll.Parent = mainFrame
+    scroll.CanvasSize = UDim2.new(0,0,0,0)
+    scroll.ScrollBarThickness = 6
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+    local list = Instance.new("UIListLayout")
+    list.Parent = scroll
+    list.SortOrder = Enum.SortOrder.LayoutOrder
+    list.Padding = UDim.new(0,5)
+
+    optionFrames[tabName] = scroll
 end
 
 -- Atualiza visibilidade ao trocar de aba
@@ -118,7 +127,8 @@ local optionsState = {}
 local loops = {}
 
 local function createOption(name, order, func, parentFrame)
-    local button = createButton(parentFrame, name, UDim2.new(1, -10, 0, 25), UDim2.new(0,5,0,(order*28)), FONTS.SEMI, 14, COLORS.BUTTON_BG)
+    local button = createButton(parentFrame, name, UDim2.new(1, -10, 0, 25), UDim2.new(0,5,0,0), FONTS.SEMI, 14, COLORS.BUTTON_BG)
+    button.LayoutOrder = order
     
     local check = createLabel(button, "", UDim2.new(0,20,0,20), UDim2.new(1,-50,0.5,-10), FONTS.SEMI,14,COLORS.CHECK_TEXT)
     local checkCorner = Instance.new("UICorner")
@@ -175,6 +185,41 @@ local function powerPocao() while optionsState["PowerPoção🧪"] do
     ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
     task.wait()
 end end
+
+local function energiaPocao() while optionsState["EnergyPotion⚡🧪"] do
+    local args = {
+        [1] = {
+            ["ItemType"] = "Potion",
+            ["ItemData"] = {
+                ["Price"] = -1,
+                ["BoostType"] = "Energy",
+                ["Name"] = "EnergyPotion",
+                ["PriceType"] = "SeasonPassPoint"
+            }
+        }
+    }
+    ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+    task.wait()
+end end
+
+--// Nova função RocketPotion
+local function rocketPocao() 
+    while optionsState["RocketPotion🚀🧪"] do
+        local args = {
+            [1] = {
+                ["ItemType"] = "Potion",
+                ["ItemData"] = {
+                    ["Price"] = -1,
+                    ["BoostType"] = "Rocket",
+                    ["Name"] = "Rocket",
+                    ["PriceType"] = "SeasonPassPoint"
+                }
+            }
+        }
+        ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+        task.wait()
+    end
+end
 
 --// Funções Adm
 local function speed2x()
@@ -239,11 +284,361 @@ end
 
 --// Criar opções em cada aba
 -- Game
-createOption("Pets SP🐶",0,petsSP, optionFrames["Game"])
+createOption("Pets 10SP🐶",0,petsSP, optionFrames["Game"])
 createOption("Pets enorme🐶",1,petsEnorme, optionFrames["Game"])
 createOption("Info Energia⚡",2,infoEnergia, optionFrames["Game"])
 createOption("PowerPoção🧪",3,powerPocao, optionFrames["Game"])
 createOption("Pets LEO🐯",4,petsLEO, optionFrames["Game"])
+createOption("EnergyPotion⚡🧪",5,energiaPocao, optionFrames["Game"])
+createOption("RocketPotion🚀🧪",6,rocketPocao, optionFrames["Game"]) -- << NOVO
+
+-- Adm
+createOption("Speed 2x⚡",0,speed2x, optionFrames["Adm"])
+createOption("Noclip👻",1,noclip, optionFrames["Adm"])
+createOption("ESP👁️",2,esp, optionFrames["Adm"])
+
+--// Footer
+local footer = createLabel(mainFrame,"YouTube: Jubileu 🐧",
+    UDim2.new(0.5,0,0,60+28*8+5),
+    UDim2.new(0,0,0,0),
+    FONTS.SEMI,13,COLORS.TEXT
+)
+footer.AnchorPoint = Vector2.new(0.5,0)
+footer.TextXAlignment = Enum.TextXAlignment.Center
+footer.ZIndex = 10
+
+--// Abrir/fechar menu
+local open = true
+arrowButton.MouseButton1Click:Connect(function()
+    open = not open
+    local targetSize = open and UDim2.new(0,200,0,200) or UDim2.new(0,200,0,30)
+    TweenService:Create(mainFrame,TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=targetSize}):Play()
+    for _, frame in pairs(optionFrames) do
+        frame.Visible = open and (frame == optionFrames[activeTab])
+    end
+    tabFrame.Visible = open
+end)
+
+--// Arrastar menu
+local dragging = false
+local dragInput, mousePos, framePos
+
+title.InputBegan:Connect(function(input)
+    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+        dragging=true
+        mousePos=input.Position
+        framePos=mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState==Enum.UserInputState.End then dragging=false end
+        end)
+    end
+end)
+
+title.InputChanged:Connect(function(input)
+    if input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch then
+        dragInput=input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input==dragInput and dragging then
+        local delta=input.Position-mousePos
+        mainFrame.Position=UDim2.new(framePos.X.Scale,framePos.X.Offset+delta.X,framePos.Y.Scale,framePos.Y.Offset+delta.Y)
+        footer.Position=UDim2.new(0.5,0,0,60+28*8+5)
+    end
+end)--// Serviços
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+--// Cores e Fontes padrão
+local COLORS = {
+    MAIN_BG = Color3.fromRGB(20, 20, 20),
+    BUTTON_BG = Color3.fromRGB(30, 30, 30),
+    CHECK_BG = Color3.fromRGB(15, 15, 15),
+    TEXT = Color3.fromRGB(255, 255, 255),
+    CHECK_TEXT = Color3.fromRGB(0, 255, 0)
+}
+
+local FONTS = {
+    BOLD = Enum.Font.GothamBold,
+    SEMI = Enum.Font.GothamSemibold
+}
+
+--// Criar ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CustomMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+--// Funções auxiliares
+local function createLabel(parent, text, size, position, font, textSize, color, alignLeft)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = size
+    lbl.Position = position
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.Font = font
+    lbl.TextSize = textSize
+    lbl.TextColor3 = color
+    if alignLeft then
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+    end
+    lbl.Parent = parent
+    return lbl
+end
+
+local function createButton(parent, text, size, position, font, textSize, bgColor)
+    local btn = Instance.new("TextButton")
+    btn.Size = size
+    btn.Position = position
+    btn.BackgroundColor3 = bgColor
+    btn.Text = text
+    btn.TextColor3 = COLORS.TEXT
+    btn.Font = font
+    btn.TextSize = textSize
+    btn.BorderSizePixel = 0
+    btn.Parent = parent
+    return btn
+end
+
+--// Frame principal
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 200, 0, 200)
+mainFrame.Position = UDim2.new(0, 20, 0, 100)
+mainFrame.BackgroundColor3 = COLORS.MAIN_BG
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 6)
+mainCorner.Parent = mainFrame
+
+--// Header
+local title = createLabel(mainFrame, "YEET A FRIEND!", UDim2.new(1, -25, 0, 30), UDim2.new(0, 30, 0, 0), FONTS.BOLD, 16, COLORS.TEXT, true)
+local arrowButton = createButton(mainFrame, "▼", UDim2.new(0, 25, 0, 25), UDim2.new(1, -25, 0, 3), FONTS.BOLD, 18, Color3.fromRGB(0,0,0))
+arrowButton.BackgroundTransparency = 1
+
+--// Abas
+local tabs = {}
+local tabNames = {"Game", "Adm", "Config"}
+local tabFrame = Instance.new("Frame")
+tabFrame.Size = UDim2.new(1, 0, 0, 30)
+tabFrame.Position = UDim2.new(0,0,0,30)
+tabFrame.BackgroundTransparency = 1
+tabFrame.Parent = mainFrame
+
+local activeTab = "Game"
+
+for i, name in ipairs(tabNames) do
+    local tabButton = createButton(tabFrame, name, UDim2.new(0, 60, 1, 0), UDim2.new(0, (i-1)*65, 0, 0), FONTS.SEMI, 14, COLORS.BUTTON_BG)
+    tabs[name] = tabButton
+end
+
+--// Frames separados para cada aba (ScrollingFrame com Layout)
+local optionFrames = {}
+for _, tabName in ipairs(tabNames) do
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, 0, 1, -65)
+    scroll.Position = UDim2.new(0,0,0,60)
+    scroll.BackgroundTransparency = 1
+    scroll.Visible = (tabName == activeTab)
+    scroll.Parent = mainFrame
+    scroll.CanvasSize = UDim2.new(0,0,0,0)
+    scroll.ScrollBarThickness = 6
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+    local list = Instance.new("UIListLayout")
+    list.Parent = scroll
+    list.SortOrder = Enum.SortOrder.LayoutOrder
+    list.Padding = UDim.new(0,5)
+
+    optionFrames[tabName] = scroll
+end
+
+-- Atualiza visibilidade ao trocar de aba
+for name, tabButton in pairs(tabs) do
+    tabButton.MouseButton1Click:Connect(function()
+        activeTab = name
+        for tabName, frame in pairs(optionFrames) do
+            frame.Visible = (tabName == activeTab)
+        end
+    end)
+end
+
+--// Toggles
+local optionsState = {}
+local loops = {}
+
+local function createOption(name, order, func, parentFrame)
+    local button = createButton(parentFrame, name, UDim2.new(1, -10, 0, 25), UDim2.new(0,5,0,0), FONTS.SEMI, 14, COLORS.BUTTON_BG)
+    button.LayoutOrder = order
+    
+    local check = createLabel(button, "", UDim2.new(0,20,0,20), UDim2.new(1,-50,0.5,-10), FONTS.SEMI,14,COLORS.CHECK_TEXT)
+    local checkCorner = Instance.new("UICorner")
+    checkCorner.CornerRadius = UDim.new(0,4)
+    checkCorner.Parent = check
+
+    local stateLabel = createLabel(button, "OFF", UDim2.new(0,30,0,20), UDim2.new(1,-25,0.5,-10), FONTS.SEMI,10,Color3.fromRGB(255,0,0))
+
+    optionsState[name] = false
+
+    button.MouseButton1Click:Connect(function()
+        optionsState[name] = not optionsState[name]
+        check.Text = optionsState[name] and "✔" or ""
+        stateLabel.Text = optionsState[name] and "ON" or "OFF"
+        stateLabel.TextColor3 = optionsState[name] and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+        TweenService:Create(check,TweenInfo.new(0.2,Enum.EasingStyle.Quad),{BackgroundColor3 = optionsState[name] and COLORS.CHECK_TEXT or COLORS.CHECK_BG}):Play()
+
+        if optionsState[name] then
+            loops[name] = coroutine.create(func)
+            coroutine.resume(loops[name])
+        else
+            loops[name] = nil
+        end
+    end)
+end
+
+--// Funções Game
+local function infoEnergia() while optionsState["Info Energia⚡"] do
+    local args = {[1] = {["ItemType"]="Energy",["ItemData"]={["Price"]=-1,["Product"]=1362659018,["Name"]="Energy3",["PriceType"]="SeasonPassPoint"}}}
+    ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+    task.wait()
+end end
+
+local function petsSP() while optionsState["Pets SP🐶"] do
+    local args = {[1] = {["ItemType"]="Pet",["ItemData"]={["Price"]=-1,["Id"]=2005,["Name"]="Moody",["PriceType"]="SeasonPassPoint"}}}
+    ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+    task.wait()
+end end
+
+local function petsEnorme() while optionsState["Pets enorme🐶"] do
+    local args = {[1] = {["ItemType"]="Pet",["ItemData"]={["Price"]=-1,["Id"]=5001,["Name"]="Moody",["PriceType"]="SeasonPassPoint"}}}
+    ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+    task.wait()
+end end
+
+local function petsLEO() while optionsState["Pets LEO🐯"] do
+    local args = {[1] = {["ItemType"]="Pet",["ItemData"]={["Price"]=-1,["Id"]=6001,["Name"]="Moody",["PriceType"]="SeasonPassPoint"}}}
+    ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+    task.wait()
+end end
+
+local function powerPocao() while optionsState["PowerPoção🧪"] do
+    local args = {[1] = {["ItemType"]="Potion",["ItemData"]={["Price"]=-1,["BoostType"]="Power",["Name"]="PowerPotion",["PriceType"]="SeasonPassPoint"}}}
+    ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+    task.wait()
+end end
+
+local function energiaPocao() while optionsState["EnergyPotion⚡🧪"] do
+    local args = {
+        [1] = {
+            ["ItemType"] = "Potion",
+            ["ItemData"] = {
+                ["Price"] = -1,
+                ["BoostType"] = "Energy",
+                ["Name"] = "EnergyPotion",
+                ["PriceType"] = "SeasonPassPoint"
+            }
+        }
+    }
+    ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+    task.wait()
+end end
+
+--// Nova função RocketPotion
+local function rocketPocao() 
+    while optionsState["RocketPotion🚀🧪"] do
+        local args = {
+            [1] = {
+                ["ItemType"] = "Potion",
+                ["ItemData"] = {
+                    ["Price"] = -1,
+                    ["BoostType"] = "Rocket",
+                    ["Name"] = "Rocket",
+                    ["PriceType"] = "SeasonPassPoint"
+                }
+            }
+        }
+        ReplicatedStorage.Remote.SeasonPass.Server.PurchaseMarketItem:InvokeServer(unpack(args))
+        task.wait()
+    end
+end
+
+--// Funções Adm
+local function speed2x()
+    local character = player.Character
+    if character and character:FindFirstChild("Humanoid") then
+        character.Humanoid.WalkSpeed = 32
+    end
+    while optionsState["Speed 2x⚡"] and character.Parent do
+        task.wait(0.1)
+        if character.Humanoid.WalkSpeed ~= 32 then
+            character.Humanoid.WalkSpeed = 32
+        end
+    end
+    if character and character:FindFirstChild("Humanoid") then
+        character.Humanoid.WalkSpeed = 16
+    end
+end
+
+local function noclip()
+    local character = player.Character
+    while optionsState["Noclip👻"] and character and character:FindFirstChild("HumanoidRootPart") do
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+        task.wait(0.1)
+    end
+    if character then
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+local function esp()
+    while optionsState["ESP👁️"] do
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                if not plr.Character:FindFirstChild("ESP") then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ESP"
+                    highlight.Adornee = plr.Character
+                    highlight.FillColor = Color3.fromRGB(0,255,0)
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineColor = Color3.fromRGB(0,255,0)
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = plr.Character
+                end
+            end
+        end
+        task.wait(0.5)
+    end
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr.Character and plr.Character:FindFirstChild("ESP") then
+            plr.Character.ESP:Destroy()
+        end
+    end
+end
+
+--// Criar opções em cada aba
+-- Game
+createOption("Pets.10SP🐶",0,petsSP, optionFrames["Game"])
+createOption("Pets.Enorme🐶",1,petsEnorme, optionFrames["Game"])
+createOption("Inf.Energia⚡",2,infoEnergia, optionFrames["Game"])
+createOption("Power.Poção🧪",3,powerPocao, optionFrames["Game"])
+createOption("Pets.LEO🐯",4,petsLEO, optionFrames["Game"])
+createOption("Energy.Potion⚡🧪",5,energiaPocao, optionFrames["Game"])
+createOption("Rocket.Potion🚀🧪",6,rocketPocao, optionFrames["Game"]) -- << NOVO
 
 -- Adm
 createOption("Speed 2x⚡",0,speed2x, optionFrames["Adm"])
