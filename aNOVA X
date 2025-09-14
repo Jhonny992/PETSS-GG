@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -146,11 +147,8 @@ local function createOption(name, order, func, parentFrame)
         stateLabel.TextColor3 = optionsState[name] and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
         TweenService:Create(check,TweenInfo.new(0.2,Enum.EasingStyle.Quad),{BackgroundColor3 = optionsState[name] and COLORS.CHECK_TEXT or COLORS.CHECK_BG}):Play()
 
-        if optionsState[name] then
-            loops[name] = coroutine.create(func)
-            coroutine.resume(loops[name])
-        else
-            loops[name] = nil
+        if func then
+            func()
         end
     end)
 end
@@ -167,13 +165,10 @@ local function buyItem(itemType, itemData, toggleName)
 
         local success, err = pcall(function()
             local remote = ReplicatedStorage:WaitForChild("Remote"):WaitForChild("SeasonPass"):WaitForChild("Server"):WaitForChild("PurchaseMarketItem")
-
             if remote:IsA("RemoteFunction") then
                 remote:InvokeServer(unpack(args))
             elseif remote:IsA("RemoteEvent") then
                 remote:FireServer(unpack(args))
-            else
-                warn("PurchaseMarketItem não é RemoteFunction nem RemoteEvent")
             end
         end)
 
@@ -185,37 +180,16 @@ local function buyItem(itemType, itemData, toggleName)
     end
 end
 
---// Funções Game refatoradas
-local function petsSP() 
-    buyItem("Pet", {["Price"]=0, ["Id"]=2005, ["Name"]="Moody", ["PriceType"]="SeasonPassPoint"}, "Pets SP🐶")
-end
+--// Funções Game
+local function petsSP() buyItem("Pet", {["Price"]=0, ["Id"]=2005, ["Name"]="Moody", ["PriceType"]="SeasonPassPoint"}, "Pets SP🐶") end
+local function petsEnorme() buyItem("Pet", {["Price"]=0, ["Id"]=5001, ["Name"]="Moody", ["PriceType"]="SeasonPassPoint"}, "Pets enorme🐶") end
+local function petsLEO() buyItem("Pet", {["Price"]=0, ["Id"]=6001, ["Name"]="Moody", ["PriceType"]="SeasonPassPoint"}, "Pets LEO🐯") end
+local function powerPocao() buyItem("Potion", {["Price"]=0, ["BoostType"]="Power", ["Name"]="PowerPotion", ["PriceType"]="SeasonPassPoint"}, "PowerPoção🧪") end
+local function energiaPocao() buyItem("Potion", {["Price"]=0, ["BoostType"]="Energy", ["Name"]="EnergyPotion", ["PriceType"]="SeasonPassPoint"}, "EnergyPotion⚡🧪") end
+local function rocketPocao() buyItem("Potion", {["Price"]=0, ["BoostType"]="Rocket", ["Name"]="Rocket", ["PriceType"]="SeasonPassPoint"}, "RocketPotion🚀🧪") end
+local function infoEnergia() buyItem("Energy", {["Price"]=0, ["Product"]=1362659018, ["Name"]="Energy3", ["PriceType"]="SeasonPassPoint"}, "Info Energia⚡") end
 
-local function petsEnorme() 
-    buyItem("Pet", {["Price"]=0, ["Id"]=5001, ["Name"]="Moody", ["PriceType"]="SeasonPassPoint"}, "Pets enorme🐶")
-end
-
-local function petsLEO() 
-    buyItem("Pet", {["Price"]=0, ["Id"]=6001, ["Name"]="Moody", ["PriceType"]="SeasonPassPoint"}, "Pets LEO🐯")
-end
-
-local function powerPocao() 
-    buyItem("Potion", {["Price"]=0, ["BoostType"]="Power", ["Name"]="PowerPotion", ["PriceType"]="SeasonPassPoint"}, "PowerPoção🧪")
-end
-
-local function energiaPocao() 
-    buyItem("Potion", {["Price"]=0, ["BoostType"]="Energy", ["Name"]="EnergyPotion", ["PriceType"]="SeasonPassPoint"}, "EnergyPotion⚡🧪")
-end
-
-local function rocketPocao() 
-    buyItem("Potion", {["Price"]=0, ["BoostType"]="Rocket", ["Name"]="Rocket", ["PriceType"]="SeasonPassPoint"}, "RocketPotion🚀🧪")
-end
-
-local function infoEnergia() 
-    buyItem("Energy", {["Price"]=0, ["Product"]=1362659018, ["Name"]="Energy3", ["PriceType"]="SeasonPassPoint"}, "Info Energia⚡")
-end
-
---// Criar opções em cada aba
--- Game
+--// Criar opções Game
 createOption("Pets SP🐶",0,petsSP, optionFrames["Game"])
 createOption("Pets enorme🐶",1,petsEnorme, optionFrames["Game"])
 createOption("Info Energia⚡",2,infoEnergia, optionFrames["Game"])
@@ -224,7 +198,7 @@ createOption("Pets LEO🐯",4,petsLEO, optionFrames["Game"])
 createOption("EnergyPotion⚡🧪",5,energiaPocao, optionFrames["Game"])
 createOption("RocketPotion🚀🧪",6,rocketPocao, optionFrames["Game"])
 
--- Adm (permanece igual)
+--// Funções Adm
 local function speed2x()
     local character = player.Character
     if character and character:FindFirstChild("Humanoid") then
@@ -285,10 +259,88 @@ local function esp()
     end
 end
 
--- Criar opções Adm
+--// Criar opções Adm
 createOption("Speed 2x⚡",0,speed2x, optionFrames["Adm"])
 createOption("Noclip👻",1,noclip, optionFrames["Adm"])
 createOption("ESP👁️",2,esp, optionFrames["Adm"])
+
+--// Função Remove Floating Texts
+local function toggleRemoveFloatingTexts()
+    if optionsState["Remove UI "] then
+        local blockPatterns = {"%+%d+%.?%d*", "Oc", "DE%+%d", "Energia"}
+        local destructive = false
+
+        local function matchesPattern(s)
+            if not s then return false end
+            s = tostring(s)
+            for _, patt in ipairs(blockPatterns) do
+                if s:match(patt) then return true end
+            end
+            return false
+        end
+
+        local function cleanGuiInstance(inst)
+            if not inst or not inst.Parent then return end
+            local c = inst.ClassName
+
+            if c == "BillboardGui" or c == "SurfaceGui" then
+                for _, child in ipairs(inst:GetDescendants()) do
+                    if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("ImageLabel") then
+                        if matchesPattern(child.Text) or matchesPattern(child.Name) or matchesPattern(child.Image) then
+                            if destructive then inst:Destroy() else inst.Enabled = false end
+                            return
+                        end
+                    end
+                end
+            end
+
+            if inst:IsA("ScreenGui") or inst:IsA("Frame") or inst:IsA("TextLabel") or inst:IsA("ImageLabel") then
+                for _, child in ipairs(inst:GetDescendants()) do
+                    if child:IsA("TextLabel") or child:IsA("TextButton") then
+                        if matchesPattern(child.Text) or matchesPattern(child.Name) then
+                            if destructive then
+                                if inst and inst.Parent then inst:Destroy() end
+                            else
+                                child.Visible = false
+                            end
+                            return
+                        end
+                    elseif child:IsA("ImageLabel") then
+                        if matchesPattern(child.Name) then child.Visible = false end
+                    end
+                end
+            end
+
+            if inst:IsA("TextLabel") or inst:IsA("TextButton") then
+                if matchesPattern(inst.Text) then
+                    if destructive then inst:Destroy() else inst.Visible = false end
+                end
+            end
+        end
+
+        local function watch(parent)
+            parent.DescendantAdded:Connect(function(desc)
+                RunService.Heartbeat:Wait()
+                pcall(function() cleanGuiInstance(desc) end)
+            end)
+            for _, desc in ipairs(parent:GetDescendants()) do
+                pcall(function() cleanGuiInstance(desc) end)
+            end
+        end
+
+        watch(game:GetService("Workspace"))
+        if player and player:FindFirstChild("PlayerGui") then
+            watch(player.PlayerGui)
+        else
+            player.ChildAdded:Connect(function(c)
+                if c.Name == "PlayerGui" then watch(c) end
+            end)
+        end
+    end
+end
+
+--// Adiciona toggle na aba Config
+createOption("AntiPopUI",0,toggleRemoveFloatingTexts, optionFrames["Config"])
 
 --// Footer
 local footer = createLabel(mainFrame,"YouTube: Jubileu 🐧",
